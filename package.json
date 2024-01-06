@@ -1,0 +1,10 @@
+{
+  "name": "tech.uslog.shadereditor-for-eauploader",
+  "version": "1.0.0",
+  "displayName": "Shader Editor for EAUploader",
+  "description": "Tools for change shader easily wiht EAUploader",
+  "unity": "2022.3",
+  "dependencies": {
+    "tech.uslog.eauploader": "0.9.4"
+  }
+}

@@ -1,0 +1,11 @@
+{
+    "excludedShaderGroups": [
+      "_lil",
+      "outlineoffset",
+      "CloverUI",
+      "Video",
+      "VRM10",
+      "FX"
+    ]
+  }
+  
