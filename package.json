@@ -1,10 +1,15 @@
 {
   "name": "tech.uslog.shadereditor-for-eauploader",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "displayName": "Shader Editor for EAUploader",
   "description": "Tools for change shader easily wiht EAUploader",
   "unity": "2022.3",
   "dependencies": {
     "tech.uslog.eauploader": "0.9.4"
+  },
+  "author":{
+    "name": "USLOG (fu-sasa & BreakingDawn514)",
+    "email": "fu-suke.tm@outlook.jp",
+    "url": "https://www.uslog.tech/eauploader-plug-ins-1/shader-editor"
   }
 }

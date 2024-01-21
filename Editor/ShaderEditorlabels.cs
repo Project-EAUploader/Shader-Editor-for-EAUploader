@@ -1,3 +1,4 @@
+#if !EA_ONBUILD
 using UnityEngine;
 using System.IO;
 
@@ -65,3 +66,4 @@ public class ShaderEditorlabels
         }
     }
 }
+#endif
