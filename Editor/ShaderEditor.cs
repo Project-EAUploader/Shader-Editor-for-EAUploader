@@ -5,7 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using static ShaderEditorlabels;
-using EAUploaderEditors;
+using EAUploader;
+using EAUploader.CustomPrefabUtility;
 using static styles;
 using static Texture;
 
@@ -33,7 +34,9 @@ public class ShaderEditor : EditorWindow
     private Dictionary<Material, Shader> originalShaders = new Dictionary<Material, Shader>(); 
     // 除外Shader
     private List<string> excludedShaders;
-    
+
+    private static GameObject selectedPrefabInstance;
+
     [InitializeOnLoadMethod]
     private static void InitializeOnLoad()
     {
@@ -60,9 +63,16 @@ public class ShaderEditor : EditorWindow
 
     private void OnEnable()
     {
-        if (CustomPrefabUtility.selectedPrefabInstance != null)
+        // Assuming EAUploaderCore.selectedPrefabPath is accessible and provides the path of the selected prefab
+        string prefabPath = EAUploaderCore.selectedPrefabPath;
+        if (!string.IsNullOrEmpty(prefabPath))
         {
-            Renderer[] renderers = CustomPrefabUtility.selectedPrefabInstance.GetComponentsInChildren<Renderer>();
+            selectedPrefabInstance = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        }
+
+        if (selectedPrefabInstance != null)
+        {
+            Renderer[] renderers = selectedPrefabInstance.GetComponentsInChildren<Renderer>();
             foreach (Renderer renderer in renderers)
             {
                 foreach (Material mat in renderer.sharedMaterials)
@@ -93,7 +103,7 @@ public class ShaderEditor : EditorWindow
                 imagePosition = ImagePosition.ImageOnly
             };
         }
-        if (CustomPrefabUtility.selectedPrefabInstance == null)
+        if (selectedPrefabInstance == null)
         {
             bool userClickedOk = EditorUtility.DisplayDialog(
             Dialog1,
@@ -119,16 +129,16 @@ public class ShaderEditor : EditorWindow
 
         Rect upperPartRect = new Rect(0, 0, leftWidth, upperPartHeight);
         GUILayout.BeginArea(upperPartRect);
-        if (CustomPrefabUtility.selectedPrefabInstance != null)
+        if (selectedPrefabInstance != null)
         {
-            if (currentPreviewObject != CustomPrefabUtility.selectedPrefabInstance)
+            if (currentPreviewObject != selectedPrefabInstance)
             {
                 if (gameObjectEditor != null)
                 {
                     UnityEngine.Object.DestroyImmediate(gameObjectEditor);
                 }
 
-                currentPreviewObject = CustomPrefabUtility.selectedPrefabInstance;
+                currentPreviewObject = selectedPrefabInstance;
                 gameObjectEditor = Editor.CreateEditor(currentPreviewObject);
             }
 

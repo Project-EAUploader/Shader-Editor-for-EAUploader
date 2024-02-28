@@ -1,5 +1,6 @@
 #if !EA_ONBUILD
 using UnityEngine;
+using EAUploader;
 using System.IO;
 
 public class ShaderEditorlabels
