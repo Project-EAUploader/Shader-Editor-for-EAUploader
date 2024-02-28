@@ -9,6 +9,9 @@ using EAUploader;
 using EAUploader.CustomPrefabUtility;
 using static styles;
 using static Texture;
+using UnityEngine.UIElements;
+using EAUploader.UI.Components;
+using System;
 
 public static class ShaderEditorMenu
 {
@@ -36,6 +39,7 @@ public class ShaderEditor : EditorWindow
     private List<string> excludedShaders;
 
     private static GameObject selectedPrefabInstance;
+    private static Preview preview;
 
     [InitializeOnLoadMethod]
     private static void InitializeOnLoad()
@@ -56,19 +60,27 @@ public class ShaderEditor : EditorWindow
     public static void Open()
     {
         ShaderEditorlabels.UpdateLanguage();
-        ShaderEditor window = (ShaderEditor)EditorWindow.GetWindow(typeof(ShaderEditor), false, "Shader Editor");
+        ShaderEditor window = GetWindow<ShaderEditor>();
+        window.titleContent = new GUIContent(WindowName);
         window.Show();
         window.maximized = true;
     }
 
-    private void OnEnable()
+    private void CreateGUI()
     {
-        // Assuming EAUploaderCore.selectedPrefabPath is accessible and provides the path of the selected prefab
         string prefabPath = EAUploaderCore.selectedPrefabPath;
-        if (!string.IsNullOrEmpty(prefabPath))
+
+        if (prefabPath == null)
         {
-            selectedPrefabInstance = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            bool userClickedOk = EditorUtility.DisplayDialog(
+            Dialog1,
+            Dialog2,
+            OK
+            );
+            Close();
         }
+
+        selectedPrefabInstance = PrefabUtility.LoadPrefabContents(prefabPath);
 
         if (selectedPrefabInstance != null)
         {
@@ -86,80 +98,94 @@ public class ShaderEditor : EditorWindow
             excludedShaders = LoadExcludedShaderGroups();
         }
         ShaderChecker.CheckShadersInPrefabs();
-    }
 
-    private void OnGUI()
-    {
-        if (sLabelStyle == null)
+
+        var root = rootVisualElement;
+
+        rootVisualElement.styleSheets.Add(EAUploader.UI.EAUploader.tailwind);
+        rootVisualElement.styleSheets.Add(EAUploader.UI.EAUploader.styles); 
+
+        root.style.flexGrow = 1;
+
+        var container = new VisualElement()
         {
-            sLabelStyle = new GUIStyle(EditorStyles.label) { normal = { textColor = Color.black } };
-        }
-        if (boxStyle == null)
+            style =
+            {
+                flexDirection = FlexDirection.Row,
+                flexGrow = 1
+            }
+        };
+
+        root.Add(container);
+
+        var previewContainer = new VisualElement()
         {
-            boxStyle = new GUIStyle(GUI.skin.box) 
-            { 
-                fixedWidth = 60, 
-                fixedHeight = 60,
-                imagePosition = ImagePosition.ImageOnly
-            };
-        }
-        if (selectedPrefabInstance == null)
+            style =
+            {
+                flexGrow = 1,
+                width = new StyleLength(new Length(50, LengthUnit.Percent))
+            }
+        };
+        previewContainer.AddToClassList("border-r");
+        previewContainer.AddToClassList("border-r-zinc-300");
+
+        container.Add(previewContainer);
+
+        preview = new Preview(previewContainer, EAUploaderCore.selectedPrefabPath);
+        preview.ShowContent();
+
+        var shaderContainer = new VisualElement()
         {
-            bool userClickedOk = EditorUtility.DisplayDialog(
-            Dialog1,
-            Dialog2,
-            OK
-            );
+            style =
+            {
+                flexDirection = FlexDirection.Row,
+                flexGrow = 1,
+                width = new StyleLength(new Length(50, LengthUnit.Percent))
+            }
+        };
+
+        var shaderEditor = new VisualElement()
+        {
+            style =
+            {
+                flexGrow = 1,
+                flexShrink = 1
+            }
+        };
+        shaderEditor.AddToClassList("border-r");
+        shaderEditor.AddToClassList("border-r-zinc-300");
+
+        shaderContainer.Add(shaderEditor);
+
+        var shaderList = new VisualElement()
+        {
+            style =
+            {
+                flexGrow = 1,
+                flexShrink = 1
+            }
+        };
+
+        shaderContainer.Add(shaderList);
+
+        container.Add(shaderContainer);
+
+
+        var closeButton = new EAUploader.UI.Components.ShadowButton()
+        {
+            text = CloseButtonLabel
+        };
+
+        closeButton.clicked += () =>
+        {
             Close();
-        }
+        };
 
-        EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), Color.white);
+        root.Add(closeButton);
 
-        float totalWidth = this.position.width;
-        float totalHeight = this.position.height;
 
-        float upperPartHeight = totalHeight * 0.95f;
-        float lowerPartHeight = totalHeight * 0.05f;
-        float leftWidth = totalWidth * 0.5f;
-        float middleWidth = totalWidth * 0.3f;
-        float rightWidth = totalWidth * 0.2f;
-
-        float previewAreaWidth = leftWidth;
-        float previewAreaHeight = upperPartHeight;
-
-        Rect upperPartRect = new Rect(0, 0, leftWidth, upperPartHeight);
-        GUILayout.BeginArea(upperPartRect);
-        if (selectedPrefabInstance != null)
-        {
-            if (currentPreviewObject != selectedPrefabInstance)
-            {
-                if (gameObjectEditor != null)
-                {
-                    UnityEngine.Object.DestroyImmediate(gameObjectEditor);
-                }
-
-                currentPreviewObject = selectedPrefabInstance;
-                gameObjectEditor = Editor.CreateEditor(currentPreviewObject);
-            }
-
-            if (gameObjectEditor != null)
-            {
-                GUIStyle bgColor = new GUIStyle();
-                bgColor.normal.background = EditorGUIUtility.whiteTexture;
-
-                gameObjectEditor.OnInteractivePreviewGUI(upperPartRect, bgColor);
-            }
-        }
-        GUILayout.EndArea();
-
-        EditorGUI.DrawRect(new Rect(leftWidth, 0, 1f, upperPartHeight), Color.black);
-        EditorGUI.DrawRect(new Rect(leftWidth + middleWidth, 0, 1f, upperPartHeight), Color.black);
-
-        GUILayout.BeginArea(new Rect(leftWidth + 1f, 0, middleWidth - 1f, upperPartHeight));
-        GUILayout.Label(EditShader, h1LabelStyle);
-        string[] shaderGuids = AssetDatabase.FindAssets("t:Shader");
-        List<string> shaderOptions = new List<string>();
-        foreach (var guid in shaderGuids)
+        var shaderOptions = new List<string>();
+        foreach (var guid in AssetDatabase.FindAssets("t:Shader"))
         {
             string shaderPath = AssetDatabase.GUIDToAssetPath(guid);
             Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(shaderPath);
@@ -172,62 +198,157 @@ public class ShaderEditor : EditorWindow
         }
 
         int prevSelectedShaderIndex = selectedShaderIndex;
-        selectedShaderIndex = EditorGUILayout.Popup(selectedShaderIndex, shaderOptions.ToArray(), PopupStyle);
-        if (GUILayout.Button(ApplyAll, SubButtonStyle))
+        
+        var shaderDropdown = new DropdownField()
         {
-            Shader selectedShader = Shader.Find(shaderOptions[selectedShaderIndex]);
-            ApplyShaderToAll(selectedShader);
-        }
+            label = EditShader,
+            choices = shaderOptions.Select(x => x).ToList(),
+            index = selectedShaderIndex
+        };
 
-        GUILayout.BeginHorizontal();
-        // "Undo" 
-        if (shaderChanged && GUILayout.Button(UndoLabel, SubButtonStyle))
+        shaderDropdown.RegisterValueChangedCallback((evt) =>
+        {
+            selectedShaderIndex = Int32.Parse(evt.newValue);
+        });
+
+        shaderEditor.Add(shaderDropdown);
+
+        var applyAllButton = new EAUploader.UI.Components.ShadowButton()
+        {
+            text = ApplyAll
+        };
+
+        applyAllButton.clicked += () =>
+        {
+            newShader = Shader.Find(shaderOptions[selectedShaderIndex]);
+            ApplyShaderToAll(newShader);
+        };
+
+        var undoButton = new EAUploader.UI.Components.ShadowButton()
+        {
+            text = UndoLabel
+        };
+
+        undoButton.clicked += () =>
         {
             UndoShaderChanges();
-        }
+        };
 
-        // "Save"
-        if (shaderChanged && GUILayout.Button(Save, SubButtonStyle))
+        var saveButton = new EAUploader.UI.Components.ShadowButton()
+        {
+            text = Save
+        };
+
+        saveButton.clicked += () =>
         {
             SaveCurrentShaders();
-        }
-        GUILayout.EndHorizontal();
+        };
 
-        ScrollPosition = GUILayout.BeginScrollView(ScrollPosition);
+
+        shaderEditor.Add(applyAllButton);
+        shaderEditor.Add(undoButton);
+        shaderEditor.Add(saveButton);
+
+
+        var shaderEditorContainer = new ScrollView() 
+        {
+            style =
+            {
+                flexGrow = 1,
+                flexShrink = 1
+            }
+        };
+        shaderEditor.Add(shaderEditorContainer);
+
+        var shaderEditorContent = new VisualElement()
+        {
+            style =
+            {
+                flexDirection = FlexDirection.Column
+            }
+        };
+
+        shaderEditorContainer.Add(shaderEditorContent);
+
         foreach (var mat in materials)
         {
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Box(AssetPreview.GetAssetPreview(mat), boxStyle);
-            EditorGUILayout.LabelField(mat.name, sLabelStyle);
+            var shaderItem = new VisualElement()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center
+                }
+            };
 
-            string currentShaderName = mat.shader.name;
-            int currentIndex = shaderOptions.IndexOf(currentShaderName);
-            int newIndex = EditorGUILayout.Popup(currentIndex, shaderOptions.ToArray(), PopupStyle);
+            var shaderPreview = new Image()
+            {
+                image = AssetPreview.GetAssetPreview(mat),
+                scaleMode = ScaleMode.ScaleToFit,
+                style =
+                {
+                    width = 50,
+                    height = 50
+                }
+            };
 
-            if (newIndex != currentIndex)
+            shaderItem.Add(shaderPreview);
+
+            var shaderName = new Label()
+            {
+                text = mat.name,
+                style =
+                {
+                    marginLeft = 10
+                }
+            };
+
+            shaderItem.Add(shaderName);
+
+            var shaderDropdownItem = new DropdownField()
+            {
+                choices = shaderOptions.Select(x => x).ToList(),
+                index = shaderOptions.IndexOf(mat.shader.name)
+            };
+
+            shaderDropdownItem.RegisterValueChangedCallback((evt) =>
             {
                 SaveOriginalShader(mat);
-                mat.shader = Shader.Find(shaderOptions[newIndex]);
+                mat.shader = Shader.Find(evt.newValue);
                 shaderChanged = true;
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-        GUILayout.EndScrollView();
+            });
 
-        if (shaderChanged)
+            shaderItem.Add(shaderDropdownItem);
+
+            shaderEditorContent.Add(shaderItem);
+        }
+
+        var manageArea = new VisualElement()
         {
-            Repaint();
-        }
+            style =
+            {
+                flexDirection = FlexDirection.Column,
+                flexGrow = 1,
+                flexShrink = 1
+            }
+        };
 
-        GUILayout.EndArea();
+        shaderList.Add(manageArea);
 
-        Rect ManageArea = new Rect(leftWidth + middleWidth + 1f, 0, rightWidth - 1f, upperPartHeight);
-        GUILayout.BeginArea(ManageArea);
-        GUILayout.Label(Shaders, h1LabelStyle);
-        DrawHorizontalLine(Color.black, 12, ManageArea.width);
+        var manageLabel = new Label()
+        {
+            text = Shaders,
+            style =
+            {
+                fontSize = 24,
+                marginBottom = 10
+            }
+        };
 
-        // シェーダーをグループ別に整理
-        Dictionary<string, List<string>> shaderGroups = new Dictionary<string, List<string>>();
+        manageArea.Add(manageLabel);
+
+        var shaderGroups = new Dictionary<string, List<string>>();
+
         foreach (string shaderName in shaderOptions)
         {
             string groupName = shaderName.Split('/')[0].Trim();
@@ -238,41 +359,44 @@ public class ShaderEditor : EditorWindow
             shaderGroups[groupName].Add(shaderName);
         }
 
-        GUILayout.BeginVertical();
-        _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
+        var shaderGroupList = new ScrollView()
+        {
+            style =
+            {
+                flexGrow = 1,
+                flexShrink = 1
+            }
+        };
+
+        manageArea.Add(shaderGroupList);
+
+        var shaderGroupContent = new VisualElement()
+        {
+            style =
+            {
+                flexDirection = FlexDirection.Column
+            }
+        };
+
+        shaderGroupList.Add(shaderGroupContent);
+
         foreach (var group in shaderGroups)
         {
             if (!excludedShaders.Contains(group.Key))
             {
-                GUILayout.Label(group.Key, h4LabelStyle);
+                var groupLabel = new Label()
+                {
+                    text = group.Key,
+                    style =
+                    {
+                        fontSize = 18,
+                        marginBottom = 10
+                    }
+                };
+
+                shaderGroupContent.Add(groupLabel);
             }
-
-            DrawHorizontalDottedLine(Color.black, 12, ManageArea.width);
-        }
-        GUILayout.EndScrollView();
-
-        if (GUILayout.Button(Opendetail, SubButtonStyle))
-        {
-            Application.OpenURL("https://www.uslog.tech/eauploader-forum/__q-a/siedanituite");
-        }
-
-        GUILayout.EndVertical();
-
-        GUILayout.EndArea();
-
-        Rect closeButtonRect = new Rect(0, upperPartHeight, totalWidth, lowerPartHeight);
-        GUILayout.BeginArea(closeButtonRect);
-        if (GUILayout.Button(CloseButtonLabel, MainButtonStyle))
-        {
-            Close();
-        }
-        GUILayout.EndArea();
-
-        if (shaderChanged)
-        {
-            UpdatePrefabPreview();
-            shaderChanged = false;
-        }
+        } 
     }
 
     private void SaveOriginalShader(Material mat)
